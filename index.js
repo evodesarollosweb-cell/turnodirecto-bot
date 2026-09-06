@@ -7,12 +7,10 @@ const OpenAI = require('openai');
 const app = express();
 const port = process.env.PORT || 10000;
 
-// Configuración Supabase
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Configuración OpenRouter (usa tu variable OPENROUTER_API_KEY)
 const openai = new OpenAI({
   apiKey: process.env.OPENROUTER_API_KEY,
   baseURL: 'https://openrouter.ai/api/v1',
@@ -50,7 +48,8 @@ client.on('ready', () => {
   iniciarProcesamiento();
 });
 
-app.get('/', (req, res) => {
+// Ruta exclusiva para ver el QR: https://turnodirecto-bot.onrender.com/qr
+app.get('/qr', (req, res) => {
   if (qrCodeData) {
     res.send(`
       <html>
@@ -67,13 +66,17 @@ app.get('/', (req, res) => {
       <html>
         <body style="display:flex;justify-content:center;align-items:center;height:100vh;background:#f0f2f5;font-family:sans-serif;">
           <div style="text-align:center;background:white;padding:30px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.1);">
-            <h2>Bot activo y listo</h2>
-            <p>El bot de WhatsApp está conectado y procesando la lista de contactos.</p>
+            <h2>Bot activo y conectado</h2>
+            <p>La sesión ya está vinculada o el QR aún se está generando.</p>
           </div>
         </body>
       </html>
     `);
   }
+});
+
+app.get('/', (req, res) => {
+  res.send('Servidor del bot activo. Entrá a /qr para escanear.');
 });
 
 app.listen(port, () => {
