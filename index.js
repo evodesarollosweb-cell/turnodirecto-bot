@@ -65,9 +65,10 @@ const client = new Client({
   }
 });
 
+// Generación de QR en formato grande y legible
 client.on('qr', (qr) => {
   console.log('--- ESCANEA ESTE CÓDIGO QR CON TU WHATSAPP ---');
-  qrcode.generate(qr, { small: true });
+  qrcode.generate(qr, { small: false });
 });
 
 client.on('ready', () => {
