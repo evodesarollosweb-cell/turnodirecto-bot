@@ -3,16 +3,44 @@ const path = require('path');
 const fs = require('fs');
 const { createClient } = require('@supabase/supabase-js');
 const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode-terminal');
+const qrcodeTerminal = require('qrcode-terminal');
+const QRCode = require('qrcode');
 const OpenAI = require('openai');
 const puppeteer = require('puppeteer');
 
-// Servidor HTTP para mantener vivo el servicio en Render
+let qrImageBase64 = '';
+
+// Servidor HTTP para mostrar la imagen del QR en la web
 const port = process.env.PORT || 3000;
 const server = http.createServer((req, res) => {
   res.statusCode = 200;
-  res.setHeader('Content-Type', 'text/plain');
-  res.end('Bot WhatsApp TurnoDirecto activo\n');
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  
+  if (qrImageBase64) {
+    res.end(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Escanear QR WhatsApp</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <style>
+            body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f0f2f5; }
+            .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; }
+            img { width: 280px; height: 280px; border: 1px solid #ddd; border-radius: 8px; }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <h2>Escaneá el QR con WhatsApp</h2>
+            <p>Dispositivos vinculados ➔ Vincular un dispositivo</p>
+            <img src="${qrImageBase64}" alt="Código QR" />
+          </div>
+        </body>
+      </html>
+    `);
+  } else {
+    res.end('<h1>Bot Activo</h1><p>Si recién reiniciaste, actualizá la página en unos segundos. Si ya vinculaste el teléfono, WhatsApp está conectado.</p>');
+  }
 });
 
 server.listen(port, () => {
@@ -30,7 +58,6 @@ const openrouter = new OpenAI({
   apiKey: openrouterKey,
 });
 
-// Función para ubicar el ejecutable de Chrome descargado en Render
 function obtenerRutaChrome() {
   try {
     return puppeteer.executablePath();
@@ -46,7 +73,6 @@ function obtenerRutaChrome() {
   }
 }
 
-// Inicialización del cliente de WhatsApp
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
@@ -65,14 +91,21 @@ const client = new Client({
   }
 });
 
-// Generación de QR en formato grande y legible
-client.on('qr', (qr) => {
-  console.log('--- ESCANEA ESTE CÓDIGO QR CON TU WHATSAPP ---');
-  qrcode.generate(qr, { small: false });
+// Generación de la imagen limpia para la web
+client.on('qr', async (qr) => {
+  console.log('--- NUEVO CÓDIGO QR GENERADO ---');
+  try {
+    qrImageBase64 = await QRCode.toDataURL(qr);
+    console.log('¡Ingresá a tu link de Render para ver la imagen del QR!');
+  } catch (err) {
+    console.error('Error al generar la imagen del QR:', err);
+  }
+  qrcodeTerminal.generate(qr, { small: true });
 });
 
 client.on('ready', () => {
   console.log('WhatsApp conectado y listo para enviar mensajes.');
+  qrImageBase64 = '';
   procesarContactos();
 });
 
