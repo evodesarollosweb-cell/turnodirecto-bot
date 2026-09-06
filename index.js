@@ -14,16 +14,20 @@ const server = http.createServer((req, res) => {
 server.listen(port, () => {
   console.log(`Servidor HTTP activo en el puerto ${port}`);
   console.log('Bot de TurnoDirecto listo para operar!');
-  // Ejecutamos la función apenas arranca el servidor
   ejecutarBot();
 });
 
-// 2. Clientes de Supabase, Resend y OpenRouter
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
-const resend = new Resend(process.env.RESEND_API_KEY);
+// 2. Clientes adaptados a tus nombres de variables en Render
+const supabaseUrl = process.env.SUPABASE_URL || process.env.supabase_url;
+const supabaseKey = process.env.SUPABASE_KEY || process.env.api_key;
+const resendKey = process.env.RESEND_API_KEY || process.env.recent_api_key;
+const openrouterKey = process.env.OPENROUTER_API_KEY || process.env.open_router_api_key;
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+const resend = new Resend(resendKey);
 const openrouter = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
-  apiKey: process.env.OPENROUTER_API_KEY,
+  apiKey: openrouterKey,
 });
 
 // 3. Lógica principal del Bot
@@ -31,7 +35,6 @@ async function ejecutarBot() {
   try {
     console.log('Buscando contactos pendientes en Supabase...');
 
-    // Traemos los contactos pendientes que tengan email
     const { data: contactos, error } = await supabase
       .from('contactos')
       .select('*')
@@ -53,7 +56,6 @@ async function ejecutarBot() {
     for (const contacto of contactos) {
       console.log(`\nProcesando: ${contacto.nombre} (${contacto.email})...`);
 
-      // A) Pedimos la propuesta a la IA
       const completion = await openrouter.chat.completions.create({
         model: 'openai/gpt-3.5-turbo',
         messages: [
@@ -70,9 +72,8 @@ async function ejecutarBot() {
 
       const mensajeIA = completion.choices[0].message.content;
 
-      // B) Enviamos el correo con Resend
       const emailResult = await resend.emails.send({
-        from: 'onboarding@resend.dev', // O tu dominio si ya lo configuraste
+        from: 'onboarding@resend.dev',
         to: contacto.email,
         subject: `Propuesta de automatización para ${contacto.nombre}`,
         text: mensajeIA
@@ -80,7 +81,6 @@ async function ejecutarBot() {
 
       console.log(`Mail enviado con éxito a ${contacto.email}! ID:`, emailResult.id);
 
-      // C) Cambiamos el estado en Supabase para no volver a escribirle
       await supabase
         .from('contactos')
         .update({ estado: 'enviado' })
@@ -94,7 +94,6 @@ async function ejecutarBot() {
   }
 }
 
-// Mantener el proceso vivo en caso de errores insólitos
 process.on('uncaughtException', (err) => {
   console.error('Error no capturado:', err);
 });
