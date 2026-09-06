@@ -1,0 +1,12 @@
+{
+  "name": "turnodirecto-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "whatsapp-web.js": "^1.23.0"
+  }
+}
