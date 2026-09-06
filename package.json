@@ -8,6 +8,8 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
     "openai": "^4.28.0",
-    "resend": "^3.2.0"
+    "resend": "^3.2.0",
+    "whatsapp-web.js": "^1.23.0",
+    "qrcode-terminal": "^0.12.0"
   }
 }
