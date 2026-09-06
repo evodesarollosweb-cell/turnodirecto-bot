@@ -1,92 +1,109 @@
 const http = require('http');
 const { createClient } = require('@supabase/supabase-js');
-const { Resend } = require('resend');
+const { Client, LocalAuth } = require('whatsapp-web.js');
+const qrcode = require('qrcode-terminal');
 const OpenAI = require('openai');
 
 const port = process.env.PORT || 3000;
 const server = http.createServer((req, res) => {
   res.statusCode = 200;
   res.setHeader('Content-Type', 'text/plain');
-  res.end('Bot de TurnoDirecto en vivo!\n');
+  res.end('Bot WhatsApp TurnoDirecto activo\n');
 });
 
 server.listen(port, () => {
-  console.log(`Servidor HTTP activo en puerto ${port}`);
-  iniciarBot();
+  console.log(`Servidor HTTP activo en el puerto ${port}`);
 });
 
-// Lectura de variables con fallbacks
 const supabaseUrl = process.env.SUPABASE_URL || process.env.supabase_url;
 const supabaseKey = process.env.SUPABASE_KEY || process.env.api_key;
-const resendKey = process.env.RESEND_API_KEY || process.env.recent_api_key;
 const openrouterKey = process.env.OPENROUTER_API_KEY || process.env.open_router_api_key;
 
-async function iniciarBot() {
-  // Validacion previa
-  if (!supabaseUrl || !supabaseKey) {
-    console.error('ERROR: Falta configurar SUPABASE_URL o SUPABASE_KEY en Render (Environment).');
-    return;
+const supabase = createClient(supabaseUrl, supabaseKey);
+const openrouter = new OpenAI({
+  baseURL: 'https://openrouter.ai/api/v1',
+  apiKey: openrouterKey,
+});
+
+const client = new Client({
+  authStrategy: new LocalAuth(),
+  puppeteer: {
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
   }
+});
 
-  const supabase = createClient(supabaseUrl, supabaseKey);
-  const resend = new Resend(resendKey);
-  const openrouter = new OpenAI({
-    baseURL: 'https://openrouter.ai/api/v1',
-    apiKey: openrouterKey,
-  });
+client.on('qr', (qr) => {
+  console.log('--- ESCANEA ESTE CÓDIGO QR CON TU WHATSAPP ---');
+  qrcode.generate(qr, { small: true });
+});
 
+client.on('ready', () => {
+  console.log('WhatsApp conectado y listo para enviar mensajes.');
+  procesarContactos();
+});
+
+client.initialize();
+
+async function procesarContactos() {
   try {
-    console.log('Buscando contactos pendientes...');
+    console.log('Consultando contactos pendientes en Supabase...');
     const { data: contactos, error } = await supabase
       .from('contactos')
       .select('*')
-      .eq('estado', 'pendiente')
-      .not('email', 'is', null);
+      .eq('estado', 'pendiente');
 
     if (error) {
-      console.error('Error al consultar Supabase:', error.message);
+      console.error('Error Supabase:', error.message);
       return;
     }
 
-    if (!contactos || contactos.length === 0) {
-      console.log('No hay contactos pendientes con email para procesar.');
+    const pendientes = (contactos || []).filter(c => c.telefono && c.telefono.trim() !== '');
+
+    console.log(`Contactos a procesar por WhatsApp: ${pendientes.length}`);
+
+    if (pendientes.length === 0) {
+      console.log('No hay contactos pendientes con teléfono asignado.');
       return;
     }
 
-    console.log(`Procesando ${contactos.length} contacto(s)...`);
+    for (const contacto of pendientes) {
+      let numeroLimpio = contacto.telefono.replace(/[^0-9]/g, '');
+      const chatId = `${numeroLimpio}@c.us`;
 
-    for (const contacto of contactos) {
-      console.log(`Enviando propuesta a: ${contacto.nombre} (${contacto.email})`);
+      console.log(`Generando mensaje IA para: ${contacto.nombre}...`);
 
-      const completion = await openrouter.chat.completions.create({
-        model: 'openai/gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: 'Sos un experto en marketing para centros de estética en Argentina. Ofrecés "TurnoDirecto", un sistema para agendar turnos. Redactá un mail muy corto y directo.'
-          },
-          {
-            role: 'user',
-            content: `Propuesta para: ${contacto.nombre}`
-          }
-        ]
-      });
+      let mensaje = '';
+      try {
+        const completion = await openrouter.chat.completions.create({
+          model: 'meta-llama/llama-3.2-1b-instruct:free',
+          messages: [
+            {
+              role: 'system',
+              content: 'Sos un asesor comercial de TurnoDirecto. Escribí un mensaje de WhatsApp muy corto, directo y profesional ofreciendo un sistema de turnos para estéticas.'
+            },
+            {
+              role: 'user',
+              content: `Propuesta para: ${contacto.nombre}`
+            }
+          ]
+        });
+        mensaje = completion.choices[0].message.content;
+      } catch (aiErr) {
+        console.error('Error IA:', aiErr.message);
+        mensaje = `Hola ${contacto.nombre}, te escribo de TurnoDirecto para mostrarte cómo optimizar los turnos de tu estética.`;
+      }
 
-      const mensaje = completion.choices[0].message.content;
-
-      await resend.emails.send({
-        from: 'onboarding@resend.dev',
-        to: contacto.email,
-        subject: `Propuesta para ${contacto.nombre}`,
-        text: mensaje
-      });
+      console.log(`Enviando WhatsApp a ${contacto.nombre} (${numeroLimpio})...`);
+      await client.sendMessage(chatId, mensaje);
 
       await supabase
         .from('contactos')
         .update({ estado: 'enviado' })
         .eq('id', contacto.id);
 
-      console.log(`Mail enviado con exito a ${contacto.email}`);
+      console.log(`Mensaje enviado con éxito a ${contacto.nombre}!`);
+      
+      await new Promise(res => setTimeout(res, 10000));
     }
   } catch (err) {
     console.error('Error en ejecución:', err.message || err);
