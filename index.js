@@ -22,6 +22,7 @@ const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
     headless: true,
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -46,7 +47,6 @@ client.on('ready', () => {
   iniciarProcesamiento();
 });
 
-// Ruta /qr que genera la imagen al instante desde el texto del QR
 app.get('/qr', async (req, res) => {
   if (ultimoQrTexto) {
     try {
@@ -57,7 +57,6 @@ app.get('/qr', async (req, res) => {
             <div style="text-align:center;background:white;padding:30px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.1);">
               <h2>Escaneá el QR con WhatsApp</h2>
               <img src="${urlImagen}" style="width:280px;height:280px;"/>
-              <p style="color:gray;font-size:14px;margin-top:15px;">Actualizá la página si no lee bien</p>
             </div>
           </body>
         </html>
@@ -126,7 +125,7 @@ async function iniciarProcesamiento() {
 
       const prompt = `Escribí un mensaje de WhatsApp amigable, corto y natural para dirigir a "${contacto.nombre}" (un centro de estética/clínica).
 Basate estrictamente en este texto:
-"Hola! ¿Cómo dan por ahí? Estuve chusmeando su centro y les escribo porque armé Tornero (https://turnero-est.base44.app), un sistema de turnos online pensado específicamente para estéticas. Básicamente les ahorra el estar respondiendo mensajes a mano todo el día y les frena los plantones de última hora. ¿Cómo se están organizando con la agenda hoy en día?"
+"Hola! ¿Cómo andan por ahí? Estuve chusmeando su centro y les escribo porque armé Tornero (https://turnero-est.base44.app), un sistema de turnos online pensado específicamente para estéticas. Básicamente les ahorra el estar respondiendo mensajes a mano todo el día y les frena los plantones de última hora. ¿Cómo se están organizando con la agenda hoy en día?"
 Reglas:
 - Mantené exactamente el sentido y la URL https://turnero-est.base44.app
 - Tono conversacional, humano, sin formato corporativo pesado.`;
