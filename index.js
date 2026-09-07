@@ -45,7 +45,15 @@ client.on('qr', (qr) => {
 client.on('ready', () => {
   console.log('WhatsApp conectado y listo para enviar mensajes.');
   ultimoQrTexto = '';
+  
+  // Ejecuta al arrancar
   iniciarProcesamiento();
+
+  // Vuelve a revisar Supabase cada 5 minutos automáticamente
+  setInterval(() => {
+    console.log('Iniciando ciclo automático de revisión en Supabase...');
+    iniciarProcesamiento();
+  }, 5 * 60 * 1000);
 });
 
 app.get('/qr', async (req, res) => {
