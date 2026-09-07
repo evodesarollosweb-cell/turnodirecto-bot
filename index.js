@@ -16,7 +16,7 @@ const openai = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
 });
 
-let qrCodeData = '';
+let ultimoQrTexto = '';
 
 const client = new Client({
   authStrategy: new LocalAuth(),
@@ -36,38 +36,42 @@ const client = new Client({
 });
 
 client.on('qr', (qr) => {
-  console.log('Nuevo QR generado');
-  qrcode.toDataURL(qr, (err, url) => {
-    qrCodeData = url;
-  });
+  console.log('¡Nuevo QR generado en texto!');
+  ultimoQrTexto = qr;
 });
 
 client.on('ready', () => {
   console.log('WhatsApp conectado y listo para enviar mensajes.');
-  qrCodeData = '';
+  ultimoQrTexto = '';
   iniciarProcesamiento();
 });
 
-// Ruta exclusiva para ver el QR: https://turnodirecto-bot.onrender.com/qr
-app.get('/qr', (req, res) => {
-  if (qrCodeData) {
-    res.send(`
-      <html>
-        <body style="display:flex;justify-content:center;align-items:center;height:100vh;background:#f0f2f5;font-family:sans-serif;">
-          <div style="text-align:center;background:white;padding:30px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.1);">
-            <h2>Escaneá el QR con WhatsApp</h2>
-            <img src="${qrCodeData}" style="width:250px;height:250px;"/>
-          </div>
-        </body>
-      </html>
-    `);
+// Ruta /qr que genera la imagen al instante desde el texto del QR
+app.get('/qr', async (req, res) => {
+  if (ultimoQrTexto) {
+    try {
+      const urlImagen = await qrcode.toDataURL(ultimoQrTexto);
+      res.send(`
+        <html>
+          <body style="display:flex;justify-content:center;align-items:center;height:100vh;background:#f0f2f5;font-family:sans-serif;">
+            <div style="text-align:center;background:white;padding:30px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.1);">
+              <h2>Escaneá el QR con WhatsApp</h2>
+              <img src="${urlImagen}" style="width:280px;height:280px;"/>
+              <p style="color:gray;font-size:14px;margin-top:15px;">Actualizá la página si no lee bien</p>
+            </div>
+          </body>
+        </html>
+      `);
+    } catch (e) {
+      res.send('Error generando la imagen del QR.');
+    }
   } else {
     res.send(`
       <html>
         <body style="display:flex;justify-content:center;align-items:center;height:100vh;background:#f0f2f5;font-family:sans-serif;">
           <div style="text-align:center;background:white;padding:30px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.1);">
-            <h2>Bot activo y conectado</h2>
-            <p>La sesión ya está vinculada o el QR aún se está generando.</p>
+            <h2>WhatsApp ya está conectado o esperando generación</h2>
+            <p>Si los logs dicen "Nuevo QR generado", recargá esta página en 5 segundos.</p>
           </div>
         </body>
       </html>
@@ -76,7 +80,7 @@ app.get('/qr', (req, res) => {
 });
 
 app.get('/', (req, res) => {
-  res.send('Servidor del bot activo. Entrá a /qr para escanear.');
+  res.send('Servidor activo. Entrá a <a href="/qr">/qr</a> para ver el código.');
 });
 
 app.listen(port, () => {
@@ -122,7 +126,7 @@ async function iniciarProcesamiento() {
 
       const prompt = `Escribí un mensaje de WhatsApp amigable, corto y natural para dirigir a "${contacto.nombre}" (un centro de estética/clínica).
 Basate estrictamente en este texto:
-"Hola! ¿Cómo andan por ahí? Estuve chusmeando su centro y les escribo porque armé Tornero (https://turnero-est.base44.app), un sistema de turnos online pensado específicamente para estéticas. Básicamente les ahorra el estar respondiendo mensajes a mano todo el día y les frena los plantones de última hora. ¿Cómo se están organizando con la agenda hoy en día?"
+"Hola! ¿Cómo dan por ahí? Estuve chusmeando su centro y les escribo porque armé Tornero (https://turnero-est.base44.app), un sistema de turnos online pensado específicamente para estéticas. Básicamente les ahorra el estar respondiendo mensajes a mano todo el día y les frena los plantones de última hora. ¿Cómo se están organizando con la agenda hoy en día?"
 Reglas:
 - Mantené exactamente el sentido y la URL https://turnero-est.base44.app
 - Tono conversacional, humano, sin formato corporativo pesado.`;
