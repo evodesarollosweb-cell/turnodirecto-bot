@@ -1,103 +1,11 @@
-const express = require('express');
-const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode');
-const { createClient } = require('@supabase/supabase-js');
-const OpenAI = require('openai');
-
-const app = express();
-const port = process.env.PORT || 10000;
-
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY,
-  baseURL: 'https://openrouter.ai/api/v1',
-});
-
-let ultimoQrTexto = '';
-
-const client = new Client({
-  authStrategy: new LocalAuth(),
-  puppeteer: {
-    headless: true,
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--no-first-run',
-      '--no-zygote',
-      '--single-process',
-      '--disable-gpu'
-    ]
-  }
-});
-
-client.on('qr', (qr) => {
-  console.log('¡Nuevo QR generado en texto!');
-  ultimoQrTexto = qr;
-});
-
-client.on('ready', () => {
-  console.log('WhatsApp conectado y listo para enviar mensajes.');
-  ultimoQrTexto = '';
-  iniciarProcesamiento();
-});
-
-app.get('/qr', async (req, res) => {
-  if (ultimoQrTexto) {
-    try {
-      const urlImagen = await qrcode.toDataURL(ultimoQrTexto);
-      res.send(`
-        <html>
-          <body style="display:flex;justify-content:center;align-items:center;height:100vh;background:#f0f2f5;font-family:sans-serif;">
-            <div style="text-align:center;background:white;padding:30px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.1);">
-              <h2>Escaneá el QR con WhatsApp</h2>
-              <img src="${urlImagen}" style="width:280px;height:280px;"/>
-            </div>
-          </body>
-        </html>
-      `);
-    } catch (e) {
-      res.send('Error generando la imagen del QR.');
-    }
-  } else {
-    res.send(`
-      <html>
-        <body style="display:flex;justify-content:center;align-items:center;height:100vh;background:#f0f2f5;font-family:sans-serif;">
-          <div style="text-align:center;background:white;padding:30px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.1);">
-            <h2>WhatsApp ya está conectado o esperando generación</h2>
-            <p>Si los logs dicen "Nuevo QR generado", recargá esta página en 5 segundos.</p>
-          </div>
-        </body>
-      </html>
-    `);
-  }
-});
-
-app.get('/', (req, res) => {
-  res.send('Servidor activo. Entrá a <a href="/qr">/qr</a> para ver el código.');
-});
-
-app.listen(port, () => {
-  console.log(`Servidor HTTP activo en el puerto ${port}`);
-});
-
-function obtenerDelayAleatorio(minSegundos, maxSegundos) {
-  const ms = Math.floor(Math.random() * (maxSegundos - minSegundos + 1) + minSegundos) * 1000;
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
 async function iniciarProcesamiento() {
   try {
-    console.log('Consultando contactos pendientes en Supabase...');
+    console.log('Consultando contactos pendientes con teléfono en Supabase...');
     const { data: contactos, error } = await supabase
       .from('contactos')
       .select('*')
-      .eq('estado', 'pendiente');
+      .eq('estado', 'pendiente')
+      .not('telefono', 'is', null);
 
     if (error) {
       console.error('Error al obtener contactos de Supabase:', error);
@@ -105,20 +13,20 @@ async function iniciarProcesamiento() {
     }
 
     if (!contactos || contactos.length === 0) {
-      console.log('No hay contactos pendientes por enviar.');
+      console.log('No hay contactos pendientes con teléfono válidos para enviar.');
       return;
     }
 
     console.log(`Contactos a procesar: ${contactos.length}`);
 
     for (const contacto of contactos) {
-      if (!contacto.telefono) {
-        console.log(`Contacto ${contacto.nombre} sin teléfono. Omitiendo...`);
+      let numeroLimpio = String(contacto.telefono).replace(/\D/g, '');
+      if (!numeroLimpio) {
+        console.log(`Contacto ${contacto.nombre} tiene un teléfono inválido. Omitiendo...`);
         await supabase.from('contactos').update({ estado: 'sin_telefono' }).eq('id', contacto.id);
         continue;
       }
 
-      let numeroLimpio = String(contacto.telefono).replace(/\D/g, '');
       const chatId = `${numeroLimpio}@c.us`;
 
       console.log(`Generando mensaje IA para: ${contacto.nombre}...`);
@@ -158,5 +66,3 @@ Reglas:
     console.error('Error durante el procesamiento:', err);
   }
 }
-
-client.initialize();
