@@ -22,7 +22,7 @@ const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
     headless: true,
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+    executablePath: '/opt/render/project/src/.cache/puppeteer/chrome/linux-127.0.6533.88/chrome-linux64/chrome',
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -32,8 +32,7 @@ const client = new Client({
       '--no-zygote',
       '--single-process',
       '--disable-gpu',
-      '--disable-extensions',
-      '--js-flags="--max-old-space-size=256"'
+      '--disable-extensions'
     ]
   }
 });
