@@ -33,7 +33,7 @@ const client = new Client({
   authStrategy: new LocalAuth({ clientId: "turnodirecto-session" }),
   puppeteer: {
     headless: true,
-    executablePath: process.env.CHROME_PATH || '/opt/render/project/src/.cache/puppeteer/chrome/linux-127.0.6533.88/chrome-linux64/chrome',
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || require('puppeteer').executablePath(),
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
