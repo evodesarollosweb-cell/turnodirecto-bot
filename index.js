@@ -150,7 +150,7 @@ Reglas:
 - Tono conversacional, humano, sin formato corporativo pesado.`;
 
   const response = await openai.chat.completions.create({
-    model: 'openai/gpt-3.5-turbo',
+    model: 'inclusionai/ling-3.0-flash-fin:free',
     messages: [{ role: 'user', content: prompt }],
     max_tokens: 150,
   });
