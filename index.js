@@ -66,7 +66,7 @@ client.on('ready', () => {
       }
       console.log('Iniciando ciclo automático de revisión en Supabase...');
       iniciarProcesamiento();
-    }, 5 * 60 * 1000);
+    }, 20 * 60 * 1000);
   }
 });
 
@@ -224,16 +224,22 @@ async function iniciarProcesamiento() {
       return;
     }
 
-    console.log(`Contactos a procesar: ${contactos.length}`);
+    console.log(`Contactos pendientes en total: ${contactos.length}`);
 
-    for (const contacto of contactos) {
+    // Límite de mensajes por ciclo, para no mandar todo de golpe.
+    // El resto queda 'pendiente' y se manda en los ciclos siguientes.
+    const MAX_POR_CICLO = 5;
+    const loteAEnviar = contactos.slice(0, MAX_POR_CICLO);
+    console.log(`Enviando ${loteAEnviar.length} de ${contactos.length} en este ciclo...`);
+
+    for (const contacto of loteAEnviar) {
       await procesarContacto(contacto);
 
-      const segundosEsperados = await obtenerDelayAleatorio(25, 50);
+      const segundosEsperados = await obtenerDelayAleatorio(90, 240);
       console.log(`Esperando ${segundosEsperados} segundos antes del próximo envío...`);
     }
 
-    console.log('🎉 Todos los contactos pendientes han sido procesados.');
+    console.log('🎉 Lote de este ciclo procesado.');
   } catch (err) {
     console.error('Error durante el procesamiento:', err);
   } finally {
