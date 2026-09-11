@@ -146,18 +146,20 @@ function obtenerDelayAleatorio(minSegundos, maxSegundos) {
 // Genera el mensaje sin depender de ninguna IA externa: usa el nombre
 // que ya está cargado en Supabase e inserta pequeñas variaciones para
 // que el texto no sea 100% idéntico en cada envío.
+// En vez de vender de entrada, pregunta cómo manejan los turnos hoy
+// (abre conversación, no suena a venta fría directa).
 function generarMensajeFijo(nombreContacto) {
   const saludos = ['¡Hola!', 'Hola, ¿cómo andan?', 'Buenas!'];
-  const cierres = [
-    '¿Cómo se están organizando con la agenda hoy en día?',
-    '¿Cómo llevan hoy el tema de los turnos?',
-    '¿Cómo vienen manejando la agenda actualmente?',
+  const preguntas = [
+    `¿Cómo manejan los turnos en ${nombreContacto}, tienen algún sistema o lo hacen por WhatsApp?`,
+    `Quería consultarles: ¿usan algún sistema para los turnos, o se manejan por WhatsApp directamente?`,
+    `Te quería preguntar cómo organizan la agenda en ${nombreContacto} — ¿algún sistema de turnos o por WhatsApp nomás?`,
   ];
 
   const saludo = saludos[Math.floor(Math.random() * saludos.length)];
-  const cierre = cierres[Math.floor(Math.random() * cierres.length)];
+  const pregunta = preguntas[Math.floor(Math.random() * preguntas.length)];
 
-  return `${saludo} Estuve viendo el perfil de ${nombreContacto} y les escribo porque armé Turnero (https://turnero-est.base44.app), un sistema de turnos online pensado específicamente para estéticas. Básicamente les ahorra el estar respondiendo mensajes a mano todo el día y les frena los plantones de última hora. ${cierre}`;
+  return `${saludo} ${pregunta}`;
 }
 
 async function procesarContacto(contacto) {
