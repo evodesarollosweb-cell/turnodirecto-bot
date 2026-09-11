@@ -37,7 +37,9 @@ const client = new Client({
       '--no-zygote',
       '--single-process',
       '--disable-gpu',
-      '--disable-extensions'
+      '--disable-extensions',
+      '--blink-settings=imagesEnabled=false', // no cargar imágenes: baja bastante el consumo de RAM
+      '--js-flags=--max-old-space-size=200'   // limita la memoria que usa el motor JS de Chrome
     ]
   }
 });
@@ -70,6 +72,12 @@ client.on('ready', () => {
 
 client.on('auth_failure', (msg) => {
   console.error('Fallo de autenticación en WhatsApp:', msg);
+});
+
+// Evita que errores puntuales de Puppeteer/WhatsApp Web (que no rompen
+// el envío en sí) tumben todo el proceso de Node innecesariamente.
+process.on('unhandledRejection', (err) => {
+  console.error('⚠️ Promesa rechazada sin manejar (no se reinicia el proceso):', err.message || err);
 });
 
 client.on('disconnected', (reason) => {
