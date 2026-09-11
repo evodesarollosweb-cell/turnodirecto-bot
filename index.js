@@ -157,7 +157,7 @@ function generarMensajeFijo(nombreContacto) {
   const saludo = saludos[Math.floor(Math.random() * saludos.length)];
   const cierre = cierres[Math.floor(Math.random() * cierres.length)];
 
-  return `${saludo} Estuve viendo el perfil de ${nombreContacto} y les escribo porque armé Tornero (https://turnero-est.base44.app), un sistema de turnos online pensado específicamente para estéticas. Básicamente les ahorra el estar respondiendo mensajes a mano todo el día y les frena los plantones de última hora. ${cierre}`;
+  return `${saludo} Estuve viendo el perfil de ${nombreContacto} y les escribo porque armé Turnero (https://turnero-est.base44.app), un sistema de turnos online pensado específicamente para estéticas. Básicamente les ahorra el estar respondiendo mensajes a mano todo el día y les frena los plantones de última hora. ${cierre}`;
 }
 
 async function procesarContacto(contacto) {
