@@ -2,13 +2,12 @@ const express = require('express');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
 const { createClient } = require('@supabase/supabase-js');
-const OpenAI = require('openai');
 
 const app = express();
 const port = process.env.PORT || 10000;
 
 // --- Validación de variables de entorno al arrancar ---
-const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_KEY', 'OPENROUTER_API_KEY'];
+const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_KEY'];
 for (const key of requiredEnvVars) {
   if (!process.env[key]) {
     console.error(`Falta la variable de entorno ${key}. Abortando.`);
@@ -19,11 +18,6 @@ for (const key of requiredEnvVars) {
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY,
-  baseURL: 'https://openrouter.ai/api/v1',
-});
 
 let ultimoQrTexto = '';
 let estaConectado = false;
@@ -141,21 +135,21 @@ function obtenerDelayAleatorio(minSegundos, maxSegundos) {
   return new Promise(resolve => setTimeout(() => resolve(segundos), segundos * 1000));
 }
 
-async function generarMensajeIA(nombreContacto) {
-  const prompt = `Escribí un mensaje de WhatsApp amigable, corto y natural para dirigir a "${nombreContacto}" (un centro de estética/clínica).
-Basate estrictamente en este texto:
-"Hola! ¿Cómo andan por ahí? Estuve chusmeando su centro y les escribo porque armé Tornero (https://turnero-est.base44.app), un sistema de turnos online pensado específicamente para estéticas. Básicamente les ahorra el estar respondiendo mensajes a mano todo el día y les frena los plantones de última hora. ¿Cómo se están organizando con la agenda hoy en día?"
-Reglas:
-- Mantené exactamente el sentido y la URL https://turnero-est.base44.app
-- Tono conversacional, humano, sin formato corporativo pesado.`;
+// Genera el mensaje sin depender de ninguna IA externa: usa el nombre
+// que ya está cargado en Supabase e inserta pequeñas variaciones para
+// que el texto no sea 100% idéntico en cada envío.
+function generarMensajeFijo(nombreContacto) {
+  const saludos = ['¡Hola!', 'Hola, ¿cómo andan?', 'Buenas!'];
+  const cierres = [
+    '¿Cómo se están organizando con la agenda hoy en día?',
+    '¿Cómo llevan hoy el tema de los turnos?',
+    '¿Cómo vienen manejando la agenda actualmente?',
+  ];
 
-  const response = await openai.chat.completions.create({
-    model: 'inclusionai/ling-3.0-flash-fin:free',
-    messages: [{ role: 'user', content: prompt }],
-    max_tokens: 150,
-  });
+  const saludo = saludos[Math.floor(Math.random() * saludos.length)];
+  const cierre = cierres[Math.floor(Math.random() * cierres.length)];
 
-  return response.choices[0].message.content.trim();
+  return `${saludo} Estuve viendo el perfil de ${nombreContacto} y les escribo porque armé Tornero (https://turnero-est.base44.app), un sistema de turnos online pensado específicamente para estéticas. Básicamente les ahorra el estar respondiendo mensajes a mano todo el día y les frena los plantones de última hora. ${cierre}`;
 }
 
 async function procesarContacto(contacto) {
@@ -176,8 +170,8 @@ async function procesarContacto(contacto) {
   const chatId = `${numeroLimpio}@c.us`;
 
   try {
-    console.log(`Generando mensaje IA para: ${contacto.nombre}...`);
-    const mensajeAI = await generarMensajeIA(contacto.nombre);
+    console.log(`Generando mensaje para: ${contacto.nombre}...`);
+    const mensajeAI = generarMensajeFijo(contacto.nombre);
 
     console.log(`Enviando WhatsApp a ${contacto.nombre} (${numeroLimpio})...`);
     await client.sendMessage(chatId, mensajeAI);
