@@ -6,13 +6,11 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "postinstall": "npx puppeteer browsers install chrome",
     "start": "node index.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
     "express": "^4.19.2",
-    "openai": "^4.28.0",
     "puppeteer": "^22.0.0",
     "qrcode": "^1.5.3",
     "whatsapp-web.js": "^1.23.0"
